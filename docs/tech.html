@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>技术说明 · 驭研科技</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="logo/驭研科技Logo-图形-蓝色透明底.png">
+</head>
+<body class="page-tech">
+
+<header class="site-header">
+    <a class="brand" href="index.html">
+        <img src="logo/驭研科技Logo-图形&文字-白色透明底.png" alt="驭研科技">
+    </a>
+    <nav class="site-nav">
+        <a href="index.html">首页</a>
+        <a href="tech.html" class="active">技术说明</a>
+    </nav>
+</header>
+
+<section class="tech-hero">
+    <h1>从无人机视频到高精度自然驾驶数据</h1>
+    <p>覆盖稳像、检测跟踪、轨迹后处理、车道匹配、标准化输出与场景挖掘的全链路工艺。</p>
+</section>
+
+<section class="pipeline">
+    <div class="pipeline-flow">
+        <div class="pipe-step">
+            <div class="step-num">STEP 01</div>
+            <h3>视频稳像</h3>
+            <p>基于参考帧的单应性配准，叠加掩码鲁棒估计，使无人机视频帧间像素级对齐，消除漂移与抖动。</p>
+        </div>
+        <div class="pipe-step">
+            <div class="step-num">STEP 02</div>
+            <h3>目标检测与跟踪</h3>
+            <p>YOLOv8 + BoT-SORT/ByteTrack 多目标跟踪，输出 4 角点 bounding box 与稳定 track_id。</p>
+        </div>
+        <div class="pipe-step">
+            <div class="step-num">STEP 03</div>
+            <h3>轨迹后处理</h3>
+            <p>滤波、平滑、ID 融合与异常剔除，生成形式化中间轨迹（FML_TRK），保留运动学一致性。</p>
+        </div>
+        <div class="pipe-step">
+            <div class="step-num">STEP 04</div>
+            <h3>地图匹配</h3>
+            <p>OpenDRIVE 高精地图坐标系下做车道匹配，逐帧确定 lane_id、横向偏移与邻车关系。</p>
+        </div>
+        <div class="pipe-step">
+            <div class="step-num">STEP 05</div>
+            <h3>标准化输出</h3>
+            <p>对齐 highD 数据集字段：x/y/heading/速度/加速度，自动计算 DHW、THW、TTC 等安全指标。</p>
+        </div>
+        <div class="pipe-step">
+            <div class="step-num">STEP 06</div>
+            <h3>场景挖掘</h3>
+            <p>从标准化轨迹中自动检索切入、切出、减速等典型交互场景，便于仿真验证与算法回放。</p>
+        </div>
+    </div>
+</section>
+
+<section class="modules">
+    <h2>关键模块</h2>
+    <div class="module-grid">
+        <div class="module-card">
+            <h3>稳像模块 <span class="mod-tag">step1</span></h3>
+            <ul>
+                <li>多参考帧配准，长时间序列稳定</li>
+                <li>掩码区域抑制动态目标干扰</li>
+                <li>稳定后视频与原始坐标系建立单应映射</li>
+            </ul>
+        </div>
+        <div class="module-card">
+            <h3>多目标跟踪 <span class="mod-tag">step2</span></h3>
+            <ul>
+                <li>YOLOv8 检测器，自定义训练数据增强车辆/行人/两轮车类别</li>
+                <li>BoT-SORT 卡尔曼+外观特征融合，长 ID</li>
+                <li>每帧输出 4 角点 box + 类别 + 置信度（RAW_TRK.json）</li>
+            </ul>
+        </div>
+        <div class="module-card">
+            <h3>轨迹后处理 <span class="mod-tag">step3</span></h3>
+            <ul>
+                <li>跨帧 ID 重连，断裂轨迹补齐</li>
+                <li>平滑滤波保留运动学连续性</li>
+                <li>异常帧剔除（出图、检测漂移、ID 抖动）</li>
+            </ul>
+        </div>
+        <div class="module-card">
+            <h3>地图匹配 <span class="mod-tag">step4</span></h3>
+            <ul>
+                <li>OpenDRIVE 高精地图加载与车道边界采样</li>
+                <li>逐帧最近车道判定，输出 lane_id 与 lateral offset</li>
+                <li>同时识别 preceding / following / left/right alongside 邻车</li>
+            </ul>
+        </div>
+        <div class="module-card">
+            <h3>标准化输出 <span class="mod-tag">step5</span></h3>
+            <ul>
+                <li>highD 兼容字段：x, y, width, height, heading, lon/lat 速度与加速度</li>
+                <li>安全指标：DHW（车头时距）、THW、TTC</li>
+                <li>每条轨迹的 META：均速、行驶距离、车道变更次数等</li>
+            </ul>
+        </div>
+        <div class="module-card">
+            <h3>场景挖掘 <span class="mod-tag">step6</span></h3>
+            <ul>
+                <li>切入 / 切出 / 减速 / 跟车等典型交互模式自动识别</li>
+                <li>每个场景保留触发帧、相关 track_id 与上下文窗口</li>
+                <li>可直接导出仿真回放（CARLA / esmini 等）</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section class="accuracy">
+    <h2>精度验证</h2>
+    <p>覆盖位置精度、轨迹平滑度、地图匹配准确率、ID 持久性等关键指标，配合人工标注 ground truth 与 RTK 实测对比。</p>
+    <div class="accuracy-placeholder">
+        🚧 精度验证报告与对比数据将在此呈现（待补充）
+    </div>
+</section>
+
+<footer class="site-footer">
+    <div class="foot-inner">
+        <img class="foot-logo" src="logo/驭研科技Logo-图形&文字-白色透明底.png" alt="驭研科技">
+        <div class="foot-copy">
+            <p>驭研科技 · 自然驾驶数据集展示平台</p>
+            <p class="foot-dim">技术架构 · 全链路高精度处理</p>
+        </div>
+    </div>
+</footer>
+
+</body>
+</html>

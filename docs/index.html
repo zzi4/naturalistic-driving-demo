@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>驭研科技 · 自然驾驶数据集</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="logo/驭研科技Logo-图形-蓝色透明底.png">
+</head>
+<body class="page-home">
+
+<header class="site-header">
+    <a class="brand" href="index.html">
+        <img src="logo/驭研科技Logo-图形&文字-白色透明底.png" alt="驭研科技">
+    </a>
+    <nav class="site-nav">
+        <a href="index.html" class="active">首页</a>
+        <a href="tech.html">技术说明</a>
+    </nav>
+</header>
+
+<section class="hero">
+    <div class="hero-bg" id="heroBg"></div>
+    <div class="hero-inner">
+        <div class="hero-eyebrow">高精度自然驾驶数据集</div>
+        <h1 class="hero-title">从无人机视角<br>还原真实交通流</h1>
+        <p class="hero-sub">驭研科技基于无人机视频，提供从原始检测到标准化轨迹的全链路高精度数据处理能力，支撑场景挖掘、行为分析与仿真验证。</p>
+        <div class="hero-meta" id="heroMeta">
+            <div class="meta-item"><span class="meta-num" id="kpiTracks">--</span><span class="meta-label">轨迹数</span></div>
+            <div class="meta-item"><span class="meta-num" id="kpiFrames">--</span><span class="meta-label">帧数</span></div>
+            <div class="meta-item"><span class="meta-num" id="kpiDuration">--</span><span class="meta-label">时长</span></div>
+            <div class="meta-item"><span class="meta-num" id="kpiArea">--</span><span class="meta-label">覆盖范围</span></div>
+        </div>
+        <a href="#showcase" class="hero-cta">查看实景演示 ↓</a>
+    </div>
+</section>
+
+<section class="showcase" id="showcase">
+    <div class="showcase-head">
+        <h2>实时同步可视化</h2>
+        <p class="showcase-sub">原始 4K 无人机视频与标准化轨迹 + OpenDRIVE 高精地图帧级对齐</p>
+    </div>
+
+    <div class="stage" id="stage">
+        <div class="stage-pane stage-video">
+            <div class="pane-label">
+                <span class="dot dot-blue"></span>
+                <span>原始视频</span>
+                <span class="pane-meta" id="videoMeta">--</span>
+            </div>
+            <div class="video-wrap" id="videoWrap">
+                <video id="videoPlayer" preload="metadata" muted playsinline></video>
+                <div class="video-loading" id="videoLoading">载入中…</div>
+            </div>
+        </div>
+
+        <div class="stage-pane stage-map">
+            <div class="pane-label">
+                <span class="dot dot-cyan"></span>
+                <span>标准化轨迹 + 高精地图</span>
+                <span class="pane-meta" id="mapMeta">--</span>
+            </div>
+            <div class="map-wrap" id="mapWrap">
+                <canvas id="mapCanvas"></canvas>
+                <div class="map-loading" id="mapLoading">载入地图…</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="stage-controls">
+        <button id="playBtn" class="ctrl-btn" aria-label="播放/暂停">▶</button>
+        <div class="seek">
+            <input id="seekBar" type="range" min="0" max="1000" value="0" step="1">
+            <span class="seek-time" id="seekTime">00:00 / 00:00</span>
+        </div>
+        <div class="speed-group" role="group" aria-label="播放速度">
+            <button class="speed-btn" data-rate="0.5">0.5×</button>
+            <button class="speed-btn active" data-rate="1">1×</button>
+            <button class="speed-btn" data-rate="2">2×</button>
+            <button class="speed-btn" data-rate="4">4×</button>
+        </div>
+        <div class="layer-group">
+            <label class="toggle"><input type="checkbox" id="toggleBoxes" checked><span>车辆</span></label>
+            <label class="toggle"><input type="checkbox" id="toggleTrails" checked><span>轨迹尾迹</span></label>
+            <label class="toggle"><input type="checkbox" id="toggleLanes" checked><span>车道</span></label>
+            <label class="toggle"><input type="checkbox" id="toggleMarkings" checked><span>车道线</span></label>
+        </div>
+    </div>
+</section>
+
+<section class="trends" id="trends">
+    <div class="trends-head">
+        <h2>特征分布</h2>
+        <p>当前 case 中 645 条标准化轨迹的关键运动学特征分布</p>
+    </div>
+    <div class="trend-grid" id="trendGrid">
+        <div class="trend-card"><h4>平均速度 (m/s)</h4><canvas data-feature="meanVelocity"></canvas></div>
+        <div class="trend-card"><h4>轨迹时长 (帧)</h4><canvas data-feature="numFrames"></canvas></div>
+        <div class="trend-card"><h4>行驶距离 (m)</h4><canvas data-feature="traveledDistance"></canvas></div>
+        <div class="trend-card"><h4>最小 TTC (s)</h4><canvas data-feature="minTTC"></canvas></div>
+    </div>
+</section>
+
+<footer class="site-footer">
+    <div class="foot-inner">
+        <img class="foot-logo" src="logo/驭研科技Logo-图形&文字-白色透明底.png" alt="驭研科技">
+        <div class="foot-copy">
+            <p>驭研科技 · 自然驾驶数据集展示平台</p>
+            <p class="foot-dim">案例：<span id="footCase">--</span></p>
+        </div>
+    </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

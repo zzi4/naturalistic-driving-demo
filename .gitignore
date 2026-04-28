@@ -1,0 +1,22 @@
+# 大文件原始数据 —— 仅本地构建时需要，不入仓库
+demo/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Claude
+.claude/
+
+# 旧的 static 目录（已重命名为 docs）
+static/
