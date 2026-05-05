@@ -40,7 +40,6 @@ const state = {
     rafId: null,
     stdFrameIndex: new Map(),     // frame -> [{ trackId, idx }]
     mapView: { scale: 1, offsetX: 0, offsetY: 0 },
-    mapDragging: null,
     videoSize: { w: 1920, h: 1080 },
 };
 
@@ -107,7 +106,7 @@ async function init() {
         }
 
         setHidden(mapLoading, true);
-        autoFitMap();
+        alignMapToVideo();
         drawScene();
 
         videoMeta.textContent = `${state.videoSize.w}×${state.videoSize.h} · ${state.fps.toFixed(2)}fps`;
@@ -237,7 +236,7 @@ function syncCanvasToVideo() {
 
 window.addEventListener("resize", () => {
     syncCanvasToVideo();
-    autoFitMap();
+    alignMapToVideo();
     drawScene();
 });
 
@@ -248,22 +247,38 @@ function mapCanvasDims() {
     return { w: rect.width, h: rect.height };
 }
 
-function autoFitMap() {
+// 源 4K 视频帧每像素对应的真实距离 (米/像素)。
+// 由数据采集流程标定：视频帧水平实际覆盖 sourceWidth * METERS_PER_SOURCE_PX 米。
+const METERS_PER_SOURCE_PX = 0.075;
+
+function alignMapToVideo() {
+    // 让地图与视频共用坐标系：
+    //  - 世界原点 (0, 0) 对齐到画布中心（即视频中心）
+    //  - 使用与视频一致的 px/m 比例：源帧 0.075 m/px → 换算到画布显示像素
+    // 这样对比滑块从左拖到右时，视频与轨迹视图在同一位置无缝衔接。
     const { w, h } = mapCanvasDims();
-    if (!state.map?.bounds && !state.std?.bounds) return;
-    const mb = state.map.bounds;
-    const sb = state.std.bounds || mb;
-    const minX = Math.min(mb.min_x, sb.min_x);
-    const maxX = Math.max(mb.max_x, sb.max_x);
-    const minY = Math.min(mb.min_y, sb.min_y);
-    const maxY = Math.max(mb.max_y, sb.max_y);
-    const dx = maxX - minX || 1;
-    const dy = maxY - minY || 1;
-    const margin = 30;
-    const scale = Math.min((w - margin * 2) / dx, (h - margin * 2) / dy);
+    if (!state.std?.bounds && !state.map?.bounds) return;
+
+    // 视频在 16:9 容器内以 object-fit: contain 渲染，先得到视频画面在画布上的显示尺寸。
+    const videoAR = state.videoSize.w / Math.max(1, state.videoSize.h);
+    const containerAR = w / Math.max(1, h);
+    let videoW;
+    if (videoAR > containerAR) {
+        videoW = w;
+    } else {
+        videoW = h * videoAR;
+    }
+
+    // 取源视频宽（manifest 里的 video_corners.image_width，通常 4K = 3840 px）。
+    // 视频帧水平覆盖 sourceW * METERS_PER_SOURCE_PX 米；
+    // 该范围被映射到画布上视频显示的 videoW 像素，得到 px/m。
+    const sourceW = state.manifest?.video_corners?.image_width || state.videoSize.w;
+    const worldWidthInFrame = Math.max(1e-3, sourceW * METERS_PER_SOURCE_PX);
+    const scale = videoW / worldWidthInFrame;
+
     state.mapView.scale = scale;
-    state.mapView.offsetX = (w - dx * scale) / 2 - minX * scale;
-    state.mapView.offsetY = h - ((h - dy * scale) / 2 - minY * scale);  // y 翻转
+    state.mapView.offsetX = w / 2;
+    state.mapView.offsetY = h / 2;
 }
 
 function worldToMap(x, y) {
@@ -512,31 +527,63 @@ function drawFrameOverlay(frame, w, h) {
     mapCtx.fillText(text, 20, 17);
 }
 
-/* ----------------------- 地图交互（拖拽 + 滚轮） ----------------------- */
+/* ----------------------- 地图视图（锁定与视频对齐） -----------------------
+ * 为了让对比滑块两侧空间一致，地图视图不再支持自由拖拽与缩放。
+ * 任何画布的几何变化（resize 等）都会回到 alignMapToVideo() 给出的对齐参数。
+ */
 
-mapCanvas.addEventListener("mousedown", (e) => {
-    state.mapDragging = { x: e.clientX, y: e.clientY, ox: state.mapView.offsetX, oy: state.mapView.offsetY };
-});
-window.addEventListener("mousemove", (e) => {
-    if (!state.mapDragging) return;
-    state.mapView.offsetX = state.mapDragging.ox + (e.clientX - state.mapDragging.x);
-    state.mapView.offsetY = state.mapDragging.oy + (e.clientY - state.mapDragging.y);
-    drawMap(state.currentFrame);
-});
-window.addEventListener("mouseup", () => { state.mapDragging = null; });
+/* ----------------------- 对比滑块 ----------------------- */
 
-mapCanvas.addEventListener("wheel", (e) => {
-    e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
-    const rect = mapCanvas.getBoundingClientRect();
-    const cx = e.clientX - rect.left;
-    const cy = e.clientY - rect.top;
-    const { scale, offsetX, offsetY } = state.mapView;
-    state.mapView.scale = scale * factor;
-    state.mapView.offsetX = cx - (cx - offsetX) * factor;
-    state.mapView.offsetY = cy - (cy - offsetY) * factor;
-    drawMap(state.currentFrame);
-}, { passive: false });
+const compareEl = $("compare");
+const compareDivider = $("compareDivider");
+const compareHandle = compareDivider ? compareDivider.querySelector(".compare-handle") : null;
+
+function setSplit(percent) {
+    const clamped = Math.min(95, Math.max(5, percent));
+    compareEl.style.setProperty("--split-pos", clamped.toFixed(2) + "%");
+}
+
+if (compareHandle) {
+    let dragPointerId = null;
+
+    const onPointerMove = (e) => {
+        if (e.pointerId !== dragPointerId) return;
+        const rect = compareEl.getBoundingClientRect();
+        const ratio = ((e.clientX - rect.left) / rect.width) * 100;
+        setSplit(ratio);
+    };
+    const onPointerUp = (e) => {
+        if (e.pointerId !== dragPointerId) return;
+        dragPointerId = null;
+        compareEl.classList.remove("dragging");
+        compareHandle.releasePointerCapture?.(e.pointerId);
+        window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("pointerup", onPointerUp);
+        window.removeEventListener("pointercancel", onPointerUp);
+    };
+
+    compareHandle.addEventListener("pointerdown", (e) => {
+        // 让 handle 抢占事件，避免触发地图 canvas 的拖拽
+        e.preventDefault();
+        e.stopPropagation();
+        dragPointerId = e.pointerId;
+        compareEl.classList.add("dragging");
+        compareHandle.setPointerCapture?.(e.pointerId);
+        window.addEventListener("pointermove", onPointerMove);
+        window.addEventListener("pointerup", onPointerUp);
+        window.addEventListener("pointercancel", onPointerUp);
+    });
+
+    // 双击 handle 复位到中心
+    compareHandle.addEventListener("dblclick", () => setSplit(50));
+
+    // 键盘可达：左右方向键以 5% 步进
+    compareHandle.addEventListener("keydown", (e) => {
+        const cur = parseFloat(getComputedStyle(compareEl).getPropertyValue("--split-pos")) || 50;
+        if (e.key === "ArrowLeft") { setSplit(cur - 5); e.preventDefault(); }
+        else if (e.key === "ArrowRight") { setSplit(cur + 5); e.preventDefault(); }
+    });
+}
 
 /* ----------------------- 滚动至舞台时自动播放 ----------------------- */
 

@@ -195,37 +195,72 @@ button { font-family: inherit; }
 .stage {
     max-width: 1440px;
     margin: 0 auto;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 18px;
-}
-@media (max-width: 1100px) {
-    .stage { grid-template-columns: 1fr; }
 }
 
-.stage-pane {
-    background: var(--bg-mid);
+.compare {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: #02050a;
     border: 1px solid var(--line);
     border-radius: var(--pane-radius);
     overflow: hidden;
     box-shadow: 0 22px 50px rgba(0, 0, 0, 0.35);
+    user-select: none;
+    -webkit-user-select: none;
 }
-.pane-label {
+
+.compare-layer {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+}
+.compare-video {
+    /* 视频层只显示分隔线左侧 */
+    clip-path: inset(0 calc(100% - var(--split-pos)) 0 0);
+}
+.compare-map {
+    /* 地图层只显示分隔线右侧 */
+    clip-path: inset(0 0 0 var(--split-pos));
+}
+
+.compare-video video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: black;
+    display: block;
+}
+.compare-map canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.compare-tag {
+    position: absolute;
+    top: 14px;
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 12px 18px;
-    background: rgba(10, 25, 50, 0.65);
-    border-bottom: 1px solid var(--line);
-    font-size: 13.5px;
+    padding: 6px 14px;
+    background: rgba(4, 10, 22, 0.72);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    font-size: 12.5px;
     color: var(--text);
     letter-spacing: 0.02em;
+    pointer-events: none;
+    white-space: nowrap;
 }
+.compare-tag.tag-left { left: 18px; }
+.compare-tag.tag-right { right: 18px; }
 .pane-meta {
-    margin-left: auto;
     color: var(--text-dim);
     font-feature-settings: "tnum";
-    font-size: 12px;
+    font-size: 11.5px;
 }
 .dot {
     width: 8px;
@@ -236,40 +271,74 @@ button { font-family: inherit; }
 .dot-blue { background: var(--accent-bright); color: var(--accent-bright); }
 .dot-cyan { background: var(--cyan); color: var(--cyan); }
 
-.video-wrap, .map-wrap {
-    position: relative;
-    aspect-ratio: 16 / 9;
-    background: #02050a;
-}
-.video-wrap video {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    background: black;
-    display: block;
-}
-.video-wrap canvas, .map-wrap canvas {
+.compare-divider {
     position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
+    top: 0;
+    bottom: 0;
+    left: var(--split-pos);
+    width: 2px;
+    background: linear-gradient(180deg,
+        rgba(255, 255, 255, 0.0) 0%,
+        rgba(255, 255, 255, 0.55) 12%,
+        rgba(255, 255, 255, 0.85) 50%,
+        rgba(255, 255, 255, 0.55) 88%,
+        rgba(255, 255, 255, 0.0) 100%);
+    transform: translateX(-1px);
+    box-shadow: 0 0 18px rgba(125, 198, 255, 0.55);
+    z-index: 4;
     pointer-events: none;
 }
-.map-wrap canvas {
+.compare-handle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(8, 18, 36, 0.85);
+    border: 2px solid var(--accent-bright);
+    box-shadow: 0 0 22px var(--accent-glow), inset 0 0 12px rgba(125, 198, 255, 0.18);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 9px;
+    cursor: ew-resize;
     pointer-events: auto;
-    cursor: grab;
+    transition: transform 0.15s ease, box-shadow 0.2s ease;
+    touch-action: none;
 }
+.compare-handle:hover,
+.compare-handle:focus-visible {
+    transform: translate(-50%, -50%) scale(1.08);
+    box-shadow: 0 0 28px var(--accent-glow), inset 0 0 14px rgba(125, 198, 255, 0.28);
+    outline: none;
+}
+.compare-handle .arrow {
+    color: var(--accent-bright);
+    font-size: 18px;
+    line-height: 1;
+    font-weight: 700;
+    pointer-events: none;
+}
+
+.compare.dragging .compare-handle { cursor: ew-resize; }
+
 .video-loading, .map-loading {
     position: absolute;
-    inset: 0;
+    top: 0;
+    bottom: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--text-dim);
     font-size: 14px;
-    background: rgba(2, 5, 10, 0.6);
+    background: rgba(2, 5, 10, 0.65);
     transition: opacity 0.4s ease;
+    z-index: 3;
 }
+.video-loading { left: 0; right: 50%; }
+.map-loading { left: 50%; right: 0; }
 .video-loading.hide, .map-loading.hide {
     opacity: 0;
     pointer-events: none;

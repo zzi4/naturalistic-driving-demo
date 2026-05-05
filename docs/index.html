@@ -42,27 +42,30 @@
     </div>
 
     <div class="stage" id="stage">
-        <div class="stage-pane stage-video">
-            <div class="pane-label">
-                <span class="dot dot-blue"></span>
-                <span>原始视频</span>
-                <span class="pane-meta" id="videoMeta">--</span>
-            </div>
-            <div class="video-wrap" id="videoWrap">
+        <div class="compare" id="compare" style="--split-pos: 50%;">
+            <div class="compare-layer compare-video">
                 <video id="videoPlayer" preload="metadata" muted playsinline></video>
-                <div class="video-loading" id="videoLoading">载入中…</div>
+                <div class="compare-tag tag-left">
+                    <span class="dot dot-blue"></span>
+                    <span>原始视频</span>
+                    <span class="pane-meta" id="videoMeta">--</span>
+                </div>
             </div>
-        </div>
-
-        <div class="stage-pane stage-map">
-            <div class="pane-label">
-                <span class="dot dot-cyan"></span>
-                <span>标准化轨迹 + 高精地图</span>
-                <span class="pane-meta" id="mapMeta">--</span>
-            </div>
-            <div class="map-wrap" id="mapWrap">
+            <div class="compare-layer compare-map">
                 <canvas id="mapCanvas"></canvas>
-                <div class="map-loading" id="mapLoading">载入地图…</div>
+                <div class="compare-tag tag-right">
+                    <span class="dot dot-cyan"></span>
+                    <span>标准化轨迹 + 高精地图</span>
+                    <span class="pane-meta" id="mapMeta">--</span>
+                </div>
+            </div>
+            <div class="video-loading" id="videoLoading">载入视频…</div>
+            <div class="map-loading" id="mapLoading">载入地图…</div>
+            <div class="compare-divider" id="compareDivider" role="separator" aria-orientation="vertical" aria-label="拖动以对比视频与轨迹地图">
+                <div class="compare-handle" tabindex="0">
+                    <span class="arrow arrow-left">‹</span>
+                    <span class="arrow arrow-right">›</span>
+                </div>
             </div>
         </div>
     </div>

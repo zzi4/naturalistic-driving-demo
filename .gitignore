@@ -17,6 +17,7 @@ Thumbs.db
 
 # Claude
 .claude/
+.playwright-mcp/
 
 # 旧的 static 目录（已重命名为 docs）
 static/
