@@ -6,7 +6,6 @@ const $ = id => document.getElementById(id);
 
 const videoPlayer = $("videoPlayer");
 const videoLoading = $("videoLoading");
-const videoMeta = $("videoMeta");
 
 const mapCanvas = $("mapCanvas");
 const mapCtx = mapCanvas.getContext("2d");
@@ -17,15 +16,18 @@ const playBtn = $("playBtn");
 const seekBar = $("seekBar");
 const seekTime = $("seekTime");
 const toggleBoxes = $("toggleBoxes");
-const toggleTrails = $("toggleTrails");
-const toggleLanes = $("toggleLanes");
+const togglePastTrail = $("togglePastTrail");
+const toggleFutureTrail = $("toggleFutureTrail");
 const toggleMarkings = $("toggleMarkings");
+const mapLegend = $("mapLegend");
 
-const TRACK_PALETTE = [
-    "#5fe6e0", "#7dc6ff", "#ffb05c", "#c89bff",
-    "#7ddc94", "#ff7ab2", "#9aa9ff", "#ffd95c",
-    "#5fc8a3", "#ff9a6b",
-];
+// 车辆按 meta.class 上色：0=car, 1=truck, 2=bus。
+const VEHICLE_TYPES = {
+    car:   { label: "car",   color: "#5fe6e0" },
+    truck: { label: "truck", color: "#ffb05c" },
+    bus:   { label: "bus",   color: "#ff7ab2" },
+};
+const TYPE_ORDER = ["car", "truck", "bus"];
 
 const state = {
     manifest: null,
@@ -52,9 +54,29 @@ function formatTime(sec) {
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-function trackColor(id) {
-    const n = parseInt(id, 10) || 0;
-    return TRACK_PALETTE[Math.abs(n) % TRACK_PALETTE.length];
+function getVehicleType(trackId) {
+    const m = state.meta?.tracks?.[trackId];
+    if (!m) return "car";
+    const cls = Number(m.class) || 0;
+    if (cls === 1) return "truck";
+    if (cls === 2) return "bus";
+    return "car";
+}
+
+function vehicleColor(trackId) {
+    return VEHICLE_TYPES[getVehicleType(trackId)].color;
+}
+
+function renderLegend() {
+    if (!mapLegend) return;
+    const parts = ['<span class="legend-title">车辆类型</span>'];
+    for (const key of TYPE_ORDER) {
+        const t = VEHICLE_TYPES[key];
+        parts.push(
+            `<span class="legend-item"><span class="legend-swatch" style="background:${t.color};color:${t.color}"></span>${t.label}</span>`
+        );
+    }
+    mapLegend.innerHTML = parts.join("");
 }
 
 async function fetchJSON(url) {
@@ -97,6 +119,7 @@ async function init() {
         buildStdFrameIndex();
         updateKPI();
         renderTrends();
+        renderLegend();
 
         // 视频元数据就绪后初始化
         if (videoPlayer.readyState >= 1) {
@@ -109,7 +132,6 @@ async function init() {
         alignMapToVideo();
         drawScene();
 
-        videoMeta.textContent = `${state.videoSize.w}×${state.videoSize.h} · ${state.fps.toFixed(2)}fps`;
         mapMeta.textContent = `${state.map.lane_count} 车道 · ${state.std.track_count} 轨迹`;
     } catch (err) {
         console.error("init failed", err);
@@ -348,7 +370,7 @@ document.querySelectorAll(".speed-btn").forEach(btn => {
     });
 });
 
-[toggleBoxes, toggleTrails, toggleLanes, toggleMarkings].forEach(t => {
+[toggleBoxes, togglePastTrail, toggleFutureTrail, toggleMarkings].forEach(t => {
     t.addEventListener("change", drawScene);
 });
 
@@ -366,14 +388,19 @@ function drawMap(frame) {
     mapCtx.fillRect(0, 0, w, h);
     drawMapGrid(w, h);
 
-    if (toggleLanes.checked) drawLanes();
     if (toggleMarkings.checked) drawMarkings();
 
-    // 轨迹尾迹（每帧出现的轨迹画过去 ~80 帧）
-    if (toggleTrails.checked) {
+    // 轨迹尾迹：可分别开关「过去 / 未来」全程轨迹
+    const showPast = togglePastTrail.checked;
+    const showFuture = toggleFutureTrail.checked;
+    if (showPast || showFuture) {
         const stdEntries = state.stdFrameIndex.get(frame) || [];
-        for (const { trackId, idx } of stdEntries) {
-            drawStdTrail(trackId, idx);
+        // 先画未来（更暗），再画过去（更亮），保证视觉重点在已发生的轨迹上
+        if (showFuture) {
+            for (const { trackId, idx } of stdEntries) drawFutureTrail(trackId, idx);
+        }
+        if (showPast) {
+            for (const { trackId, idx } of stdEntries) drawPastTrail(trackId, idx);
         }
     }
 
@@ -406,25 +433,6 @@ function drawMapGrid(w, h) {
     }
 }
 
-function drawLanes() {
-    const lanes = state.map.lanes || [];
-    for (const lane of lanes) {
-        const polygon = lane.polygon || [];
-        if (polygon.length < 3) continue;
-        mapCtx.beginPath();
-        polygon.forEach(([x, y], i) => {
-            const p = worldToMap(x, y);
-            if (i === 0) mapCtx.moveTo(p.x, p.y);
-            else mapCtx.lineTo(p.x, p.y);
-        });
-        mapCtx.closePath();
-        mapCtx.fillStyle = lane.type === "driving"
-            ? "rgba(80, 130, 170, 0.18)"
-            : "rgba(255, 200, 120, 0.10)";
-        mapCtx.fill();
-    }
-}
-
 function drawMarkings() {
     const markings = state.map.markings || [];
     for (const m of markings) {
@@ -454,26 +462,52 @@ function drawMarkings() {
     }
 }
 
-function drawStdTrail(trackId, idxAt) {
-    const track = state.std.tracks[trackId];
-    if (!track) return;
+// 走完一段轨迹索引区间 [from, to]（含端点），自动跳过空值。
+function strokeTrackRange(track, from, to) {
     const xs = track.x || [];
     const ys = track.y || [];
-    if (!xs.length) return;
-    const start = Math.max(0, idxAt - 60);
-    const color = trackColor(trackId);
-    mapCtx.strokeStyle = color;
-    mapCtx.globalAlpha = 0.55;
-    mapCtx.lineWidth = 1.4;
+    if (from > to) return;
+    let started = false;
     mapCtx.beginPath();
-    for (let i = start; i <= idxAt; i++) {
+    for (let i = from; i <= to; i++) {
         const x = xs[i], y = ys[i];
-        if (x === null || y === null) continue;
+        if (x === null || y === null || x === undefined || y === undefined) {
+            started = false;
+            continue;
+        }
         const p = worldToMap(x, y);
-        if (i === start) mapCtx.moveTo(p.x, p.y);
+        if (!started) { mapCtx.moveTo(p.x, p.y); started = true; }
         else mapCtx.lineTo(p.x, p.y);
     }
     mapCtx.stroke();
+}
+
+// 过去：保留一小段尾迹（约 60 帧 ≈ 2 秒），亮且实线，主视觉重点。
+const PAST_TRAIL_FRAMES = 60;
+function drawPastTrail(trackId, idxAt) {
+    const track = state.std.tracks[trackId];
+    if (!track || idxAt <= 0) return;
+    const from = Math.max(0, idxAt - PAST_TRAIL_FRAMES);
+    mapCtx.strokeStyle = vehicleColor(trackId);
+    mapCtx.globalAlpha = 0.78;
+    mapCtx.lineWidth = 1.6;
+    mapCtx.setLineDash([]);
+    strokeTrackRange(track, from, idxAt);
+    mapCtx.globalAlpha = 1;
+}
+
+// 未来：用车辆类型同色，但低饱和、半透明的细实线，
+// 与车道线（白/黄/虚线）形成视觉区分，又不会喧宾夺主。
+function drawFutureTrail(trackId, idxAt) {
+    const track = state.std.tracks[trackId];
+    if (!track) return;
+    const total = (track.x || []).length;
+    if (idxAt >= total - 1) return;
+    mapCtx.strokeStyle = vehicleColor(trackId);
+    mapCtx.globalAlpha = 0.32;
+    mapCtx.lineWidth = 1.0;
+    mapCtx.setLineDash([]);
+    strokeTrackRange(track, idxAt, total - 1);
     mapCtx.globalAlpha = 1;
 }
 
@@ -490,7 +524,7 @@ function drawStdBox(trackId, idx) {
     const angle = ((heading - 90) * Math.PI) / 180;
     const scale = state.mapView.scale;
     const center = worldToMap(x, y);
-    const color = trackColor(trackId);
+    const color = vehicleColor(trackId);
 
     mapCtx.save();
     mapCtx.translate(center.x, center.y);

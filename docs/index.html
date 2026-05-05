@@ -48,7 +48,6 @@
                 <div class="compare-tag tag-left">
                     <span class="dot dot-blue"></span>
                     <span>原始视频</span>
-                    <span class="pane-meta" id="videoMeta">--</span>
                 </div>
             </div>
             <div class="compare-layer compare-map">
@@ -67,6 +66,7 @@
                     <span class="arrow arrow-right">›</span>
                 </div>
             </div>
+            <div class="map-legend" id="mapLegend" aria-label="车辆类型图例"></div>
         </div>
     </div>
 
@@ -84,8 +84,8 @@
         </div>
         <div class="layer-group">
             <label class="toggle"><input type="checkbox" id="toggleBoxes" checked><span>车辆</span></label>
-            <label class="toggle"><input type="checkbox" id="toggleTrails" checked><span>轨迹尾迹</span></label>
-            <label class="toggle"><input type="checkbox" id="toggleLanes" checked><span>车道</span></label>
+            <label class="toggle"><input type="checkbox" id="togglePastTrail" checked><span>过去轨迹</span></label>
+            <label class="toggle"><input type="checkbox" id="toggleFutureTrail" checked><span>未来轨迹</span></label>
             <label class="toggle"><input type="checkbox" id="toggleMarkings" checked><span>车道线</span></label>
         </div>
     </div>
